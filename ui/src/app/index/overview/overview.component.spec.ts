@@ -1,5 +1,6 @@
 import { LOCALE_ID, signal } from "@angular/core";
 import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { FormsModule } from "@angular/forms";
 import { By } from "@angular/platform-browser";
 import { ActivatedRoute, Router, RouterModule } from "@angular/router";
 import { IonicModule } from "@ionic/angular";
@@ -16,10 +17,12 @@ import { AuthService } from "src/app/shared/service/auth/auth.service";
 import { Pagination } from "src/app/shared/service/pagination";
 import { RouteService } from "src/app/shared/service/route/route.service";
 import { UserService } from "src/app/shared/service/user.service";
-import { Edge, Service, Utils, Websocket } from "src/app/shared/shared";
+import { Service, Utils, Websocket } from "src/app/shared/shared";
 import { registerTranslateExtension } from "src/app/shared/translate.extension";
 import { Language, MyTranslateLoader } from "src/app/shared/type/language";
 import { Role } from "src/app/shared/type/role";
+import { environment } from "src/environments";
+import { FilterComponent } from "../filter/filter.component";
 import { OverViewComponent } from "./overview.component";
 
 describe("OverviewComponent", () => {
@@ -34,17 +37,33 @@ describe("OverviewComponent", () => {
                 user: new User("", "", "admin", "", true, { theme: Theme.LIGHT }),
             }),
             getIsSmartphoneResolution: () => false,
-            getEdges(): Promise<Edge[]> {
-                return Promise.resolve([]);
-            },
         },
     );
 
     const userServiceSpyObj = jasmine.createSpyObj<UserService>("UserService", ["currentUser"], {
         currentUser: signal(new User("", "", "admin", "", true, { theme: Theme.LIGHT })),
     });
+    const mutableEnvironment = environment as { backend: typeof environment.backend };
+    const originalBackend = environment.backend;
+
+    beforeAll(() => {
+        mutableEnvironment.backend = "OpenEMS Backend";
+    });
+
+    afterAll(() => {
+        mutableEnvironment.backend = originalBackend;
+    });
 
     beforeEach(async () => {
+        localStorage.removeItem("orderState");
+        userServiceSpyObj.currentUser.set(null);
+        serviceSpyObject.getEdges.calls.reset();
+        serviceSpyObject.getEdges.and.resolveTo([]);
+        serviceSpyObject.metadata.next({
+            edges: null,
+            user: null,
+        });
+
         await TestBed.configureTestingModule({
             imports: [
                 TranslateModule.forRoot({
@@ -52,8 +71,10 @@ describe("OverviewComponent", () => {
                     fallbackLang: Language.DEFAULT.key,
                 }),
                 IonicModule.forRoot(),
+                FormsModule,
                 RouterModule.forRoot(routes),
                 FlatWidgetButtonComponent,
+                FilterComponent,
             ],
             declarations: [OverViewComponent],
             providers: [
@@ -93,6 +114,28 @@ describe("OverviewComponent", () => {
                 fixture.detectChanges();
             });
     });
+
+    for (const globalRole of ["admin", "installer", "owner"] as const) {
+        it(`requests edges once with the default order when the user becomes an ${globalRole}`, async () => {
+            const user = new User("", "test.user", globalRole, Language.DE.key, true, {});
+            serviceSpyObject.metadata.next({
+                edges: {},
+                user: user,
+            });
+            userServiceSpyObj.currentUser.set(user);
+
+            fixture.detectChanges(false);
+            await fixture.whenStable();
+            fixture.detectChanges(false);
+            await fixture.whenStable();
+
+            expect(fixture.debugElement.query(By.css("oe-filter"))).toBeTruthy();
+            expect(serviceSpyObject.getEdges).toHaveBeenCalledTimes(1);
+            expect(serviceSpyObject.getEdges.calls.mostRecent().args[0].params.searchParams).toEqual({
+                orderState: [{ field: "id", sortOrder: "ASC" }],
+            });
+        });
+    }
 
     it("+loggedInUserCanInstall & ibn-button exists - Global role ADMIN", async () => {
         const button = await getIbnButtonElement(component, fixture, "installer");
