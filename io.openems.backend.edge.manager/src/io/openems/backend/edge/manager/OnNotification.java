@@ -47,6 +47,7 @@ public class OnNotification implements io.openems.common.websocket.OnNotificatio
 	private final BiConsumer<String, SystemLogNotification> handleSystemLogNotification;
 	private final BiConsumer<Logger, String> logInfo;
 	private final BiConsumer<Logger, String> logWarn;
+	private final EdgeConfigVersionTracker edgeConfigVersionTracker = new EdgeConfigVersionTracker();
 
 	public OnNotification(//
 			String name, //
@@ -168,6 +169,19 @@ public class OnNotification implements io.openems.common.websocket.OnNotificatio
 	 * @param edgeId  the Edge-ID
 	 */
 	private void handleEdgeConfigNotification(EdgeConfigNotification message, String edgeId) {
+		var ordering = message.getOrdering();
+		if (ordering.isEmpty()) {
+			this.applyEdgeConfigNotification(message, edgeId);
+			return;
+		}
+		if (!this.edgeConfigVersionTracker.apply(edgeId, ordering.get(),
+				() -> this.applyEdgeConfigNotification(message, edgeId))) {
+			this.log.debug("[{}] Ignore stale EdgeConfig [sourceId={}, revision={}]", edgeId,
+					ordering.get().sourceId(), ordering.get().revision());
+		}
+	}
+
+	private void applyEdgeConfigNotification(EdgeConfigNotification message, String edgeId) {
 		// Save config in metadata
 		var edgeOpt = this.getEdge.apply(edgeId);
 		if (edgeOpt.isPresent()) {

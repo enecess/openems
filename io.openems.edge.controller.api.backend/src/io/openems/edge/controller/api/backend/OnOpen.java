@@ -6,7 +6,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.openems.common.exceptions.OpenemsError;
-import io.openems.common.jsonrpc.notification.EdgeConfigNotification;
 
 public class OnOpen implements io.openems.common.websocket.OnOpen {
 
@@ -22,9 +21,7 @@ public class OnOpen implements io.openems.common.websocket.OnOpen {
 		this.parent.logInfo(this.log, "Connected to OpenEMS Backend");
 
 		// Immediately send Config
-		var config = this.parent.componentManager.getEdgeConfig();
-		var message = new EdgeConfigNotification(config);
-		this.parent.websocket.sendMessage(message);
+		this.parent.sendCurrentEdgeConfig();
 
 		// Send all Channel values
 		this.parent.sendChannelValuesWorker.sendValuesOfAllChannelsOnce();

@@ -75,6 +75,8 @@ public class ControllerApiBackendImpl extends AbstractOpenemsComponent
 
 	private final Logger log = LoggerFactory.getLogger(ControllerApiBackendImpl.class);
 	private final String instanceId = UUID.randomUUID().toString();
+	private final EdgeConfigOrderingSequence edgeConfigOrdering =
+			new EdgeConfigOrderingSequence(UUID.fromString(this.instanceId));
 
 	@Reference
 	private OpenemsEdgeOem oem;
@@ -224,12 +226,7 @@ public class ControllerApiBackendImpl extends AbstractOpenemsComponent
 			case EdgeEventConstants.TOPIC_CONFIG_UPDATE:
 				// Send new EdgeConfig
 				var config = (EdgeConfig) event.getProperty(EdgeEventConstants.TOPIC_CONFIG_UPDATE_KEY);
-				var message = new EdgeConfigNotification(config);
-				var ws = this.websocket;
-				if (ws == null) {
-					return;
-				}
-				ws.sendMessage(message);
+				this.sendEdgeConfig(config);
 
 				// Trigger sending of all channel values, because a Component might have
 				// disappeared
@@ -238,6 +235,18 @@ public class ControllerApiBackendImpl extends AbstractOpenemsComponent
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+	}
+
+	synchronized boolean sendCurrentEdgeConfig() {
+		return this.sendEdgeConfig(this.componentManager.getEdgeConfig());
+	}
+
+	private synchronized boolean sendEdgeConfig(EdgeConfig config) {
+		var ws = this.websocket;
+		if (ws == null) {
+			return false;
+		}
+		return ws.sendMessage(new EdgeConfigNotification(config, this.edgeConfigOrdering.next()));
 	}
 
 	@Override
