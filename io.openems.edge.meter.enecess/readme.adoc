@@ -1,0 +1,143 @@
+= enecess ecoMain Meter
+
+Integration of the enecess ecoMain and ecoSub energy monitoring system via Modbus TCP.
+
+== Overview
+
+This bundle reads one physical ecoMain system once per OpenEMS cycle and publishes the resulting immutable snapshot to a main meter and configurable branch meters. The main meter represents the grid connection, while branch meters can represent production or consumption circuits connected to the ecoMain or an ecoSub expansion module.
+
+The shared Core Component owns Modbus communication and validates the device identity. Main and Branch Components consume the Core snapshot without polling the same physical device again.
+
+== Supported Devices
+
+.enecess ecoMain and ecoSub
+* *Type*: Modular energy monitoring system for main and branch circuits
+* *Communication*: Modbus TCP
+* *Measurements*: Main-circuit and configurable single-phase or three-phase branch meters
+* *Capacity*: One main circuit and up to 40 branch circuits across ecoMain and ecoSub modules
+* *Product documentation*: https://www.enecess.com/pages/monitor[enecess Home Energy Monitoring System icon:external-link[]]
+
+== Components
+
+This bundle implements the following OpenEMS Components:
+
+=== enecess ecoMain Core
+
+*Name*: enecess ecoMain Core
+
+*Factory-PID*: `Meter.enecess.ecoMain.Core`
+
+.Implemented Natures/Interfaces
+* EcoMainCore
+* ModbusComponent
+* OpenemsComponent
+* EventHandler
+
+*Description*: Owns the fixed Unit-ID `255` Modbus connection, reads the device identity and measurement registers, and publishes one snapshot per cycle. The snapshot is used by all Main and Branch Components that reference this Core.
+
+.*Configuration*:
+
+* `id` (String): Unique Component ID (default: `ecoMain0`)
+* `alias` (String): Human-readable name; defaults to the Component ID (default: `""`)
+* `enabled` (Boolean): Enables or disables the Component (default: `true`)
+* `modbus_id` (String): ID of the Modbus bridge (default: `modbus0`)
+* `serialNumber` (String): Expected 12-digit device serial number (required)
+
+=== enecess ecoMain Main Meter
+
+*Name*: enecess ecoMain Main Meter
+
+*Factory-PID*: `Meter.enecess.ecoMain.Main`
+
+.Implemented Natures/Interfaces
+* MeterEcoMainMain
+* ElectricityMeter
+* OpenemsComponent
+* EventHandler
+
+*Description*: Maps the main-circuit measurements from a valid Core snapshot to an OpenEMS `ElectricityMeter`. Its meter type is always `GRID`.
+
+.*Configuration*:
+
+* `id` (String): Unique Component ID (default: `meter0`)
+* `alias` (String): Human-readable name; defaults to the Component ID (default: `""`)
+* `enabled` (Boolean): Enables or disables the Component (default: `true`)
+* `core_id` (String): ID of the associated ecoMain Core Component (default: `ecoMain0`)
+
+=== enecess ecoMain or ecoSub Branch Meter
+
+*Name*: enecess ecoMain ecoSub Branch Meter
+
+*Factory-PID*: `Meter.enecess.ecoMain.Branch`
+
+.Implemented Natures/Interfaces
+* MeterEcoMainBranch
+* ElectricityMeter
+* OpenemsComponent
+* EventHandler
+
+*Description*: Maps one configured single-phase or three-phase branch from a valid Core snapshot to an OpenEMS `ElectricityMeter`. Each active phase selects one physical source and channel and may independently invert its measurement direction.
+
+.*Configuration*:
+
+* `id` (String): Unique Component ID (default: `meter0`)
+* `alias` (String): Human-readable name; defaults to the Component ID (default: `""`)
+* `enabled` (Boolean): Enables or disables the Component (default: `true`)
+* `core_id` (String): ID of the associated ecoMain Core Component (default: `ecoMain0`)
+* `type` (EcoMainBranchMeterType): `PRODUCTION`, `PRODUCTION_AND_CONSUMPTION`, `CONSUMPTION_METERED`, or `CONSUMPTION_NOT_METERED` (default: `CONSUMPTION_METERED`)
+* `phaseCount` (SingleOrThreePhase): `SINGLE_PHASE` or `THREE_PHASE` (default: `THREE_PHASE`)
+* `phase1` (SinglePhase): Logical phase assigned to slot 1 (default: `L1`)
+* `source1` (Integer): Physical source for slot 1, from `0` to `3` (default: `0`)
+* `channel1` (Integer): Physical channel for slot 1, from `1` to `10` (default: `1`)
+* `invert1` (Boolean): Inverts the measurement direction for slot 1 (default: `false`)
+* `phase2` (SinglePhase): Logical phase assigned to slot 2 (default: `L2`)
+* `source2` (Integer): Physical source for slot 2, from `0` to `3` (default: `0`)
+* `channel2` (Integer): Physical channel for slot 2, from `1` to `10` (default: `2`)
+* `invert2` (Boolean): Inverts the measurement direction for slot 2 (default: `false`)
+* `phase3` (SinglePhase): Logical phase assigned to slot 3 (default: `L3`)
+* `source3` (Integer): Physical source for slot 3, from `0` to `3` (default: `0`)
+* `channel3` (Integer): Physical channel for slot 3, from `1` to `10` (default: `3`)
+* `invert3` (Boolean): Inverts the measurement direction for slot 3 (default: `false`)
+
+https://github.com/OpenEMS/openems/tree/develop/io.openems.edge.meter.enecess[Source Code icon:github[]]
+
+== Recommended App Configuration
+
+Use one `App.Meter.enecess.ecoMain` App instance for each physical ecoMain system. The App creates and maintains one Modbus TCP Bridge, one Core, an optional Main Meter, and all configured Branch Meters. It rejects an IP address or serial number already used by another ecoMain App instance.
+
+The App supports these branch meter types:
+
+* `PRODUCTION`
+* `PRODUCTION_AND_CONSUMPTION`
+* `CONSUMPTION_METERED`
+* `CONSUMPTION_NOT_METERED`
+
+The Main Meter has no configurable meter type and is always `GRID`.
+
+== Branch Addressing and Phases
+
+The implementation exposes four physical sources with ten channels each, for 40 source/channel addresses. Source `0` represents ecoMain; sources `1` to `3` represent ecoSub expansion modules. The App requires every active phase across all Branch Meters in the same App instance to use a unique physical address.
+
+A `SINGLE_PHASE` Branch uses slot 1 and assigns it to logical phase `L1`, `L2`, or `L3`. A `THREE_PHASE` Branch uses all three slots and must assign `L1`, `L2`, and `L3` exactly once. Physical channels do not need to be consecutive and may come from different sources.
+
+The `invert` option applies only to its configured phase. It negates active power, swaps production and consumption energy directions, and makes the current sign follow active power. It does not change voltage or write the phase configuration to the device.
+
+== Manual Configuration
+
+Manual Component configuration is intended for diagnostics or systems without App Manager. Create a Modbus TCP Bridge first, then create one `Meter.enecess.ecoMain.Core` with `modbus.id` referencing that Bridge and `serialNumber` set to the expected 12-digit device serial number. Add one Main Meter and any required Branch Meters with `core.id` referencing the same Core.
+
+Do not create multiple Core Components or Modbus bridges for the same physical ecoMain system.
+
+== Device Validation and Channel Behavior
+
+The current implementation publishes a valid identity only when all identity registers are available, the reported model is `2401`, the software version is at least `139`, and the reported serial number exactly matches the configured 12-digit serial number. A wrong model, unsupported software version, or serial number mismatch is reported as an OpenEMS fault.
+
+Main and Branch Meters publish new measurements only from snapshots with a valid identity and all required values. If a snapshot is invalid or incomplete, instantaneous power, voltage, and current Channels become undefined. Accumulated energy Channels retain their latest valid values until complete measurements resume.
+
+== Functional Scope and Limitations
+
+* The Core uses the fixed Modbus Unit-ID `255`.
+* The driver uses FC3 read tasks and does not issue Modbus write commands.
+* The implementation does not publish power-factor Channels.
+* The implementation does not read ecoSub online status or the device phase configuration.
+* Main and Branch Components are electricity meters, not controllable PV inverter or EV charging Components.
