@@ -212,13 +212,6 @@ public class OnRequest implements io.openems.common.websocket.OnRequest {
 	}
 
 	private CompletableFuture<User> assertUserToken(WsData wsData) throws OpenemsNamedException {
-
-		final var authService = this.parent.userAuthenticationService;
-		if (authService == null) {
-			throw new OpenemsNamedException(OpenemsError.JSONRPC_UNHANDLED_METHOD,
-					"OAuth authentication is not supported by this OpenEMS instance");
-		}
-
 		final var token = wsData.getToken().orElse(null);
 		if (token == null) {
 			throw new OpenemsNamedException(OpenemsError.COMMON_USER_NOT_AUTHENTICATED, "[user]");
@@ -300,12 +293,16 @@ public class OnRequest implements io.openems.common.websocket.OnRequest {
 	 * @throws OpenemsNamedException on error
 	 */
 	private CompletableFuture<JsonrpcResponseSuccess> handleLogoutRequest(WsData wsData, LogoutRequest request) {
-		wsData.logout();
 		final var token = wsData.getToken().orElse(null);
+		final var userAuthPasswordService = this.parent.userAuthPasswordService;
+		wsData.logout();
 		if (token == null) {
 			return CompletableFuture.completedFuture(new GenericJsonrpcResponseSuccess(request.getId()));
 		}
-		return this.parent.userAuthPasswordService.logout(token).thenApply(unused -> {
+		if (userAuthPasswordService == null) {
+			return CompletableFuture.failedFuture(OpenemsError.COMMON_SERVICE_NOT_AVAILABLE.exception());
+		}
+		return userAuthPasswordService.logout(token).thenApply(unused -> {
 			return new GenericJsonrpcResponseSuccess(request.getId());
 		});
 	}
