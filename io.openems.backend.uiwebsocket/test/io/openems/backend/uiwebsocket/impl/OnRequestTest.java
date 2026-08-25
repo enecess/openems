@@ -1,75 +1,234 @@
 package io.openems.backend.uiwebsocket.impl;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
+import org.java_websocket.WebSocket;
 import org.junit.jupiter.api.Test;
+
+import io.openems.backend.authentication.api.AuthUserPasswordAuthenticationService;
+import io.openems.backend.authentication.api.model.PasswordAuthenticationResult;
+import io.openems.backend.common.metadata.Metadata;
+import io.openems.backend.common.test.DummyUser;
+import io.openems.common.exceptions.OpenemsError;
+import io.openems.common.exceptions.OpenemsError.OpenemsNamedException;
+import io.openems.common.jsonrpc.base.GenericJsonrpcRequest;
+import io.openems.common.jsonrpc.request.GetEdgesRequest;
+import io.openems.common.jsonrpc.request.LogoutRequest;
+import io.openems.common.jsonrpc.response.GetEdgesResponse;
+import io.openems.common.utils.JsonUtils;
 
 public class OnRequestTest {
 
-    private static class DummyUiWebsocketImpl extends UiWebsocketImpl {
-        private final Set<String> removed = new HashSet<>();
-        private final Set<String> added = new HashSet<>();
+	private static final String TOKEN = "session-token";
 
-        @Override
-        public void removeEdgeSubscriptions(WsData wsData) {
-            this.removed.addAll(wsData.getSubscribedEdges());
-        }
+	@Test
+	public void authenticatedSessionHandlesRequestsWithoutOAuthService() throws Exception {
+		var parent = new UiWebsocketImpl();
+		parent.metadata = mock(Metadata.class);
+		when(parent.metadata.getPageDevice(any(), any())).thenReturn(CompletableFuture.completedFuture(List.of()));
 
-        @Override
-        public void removeEdgeSubscriptions(WsData wsData, Set<String> edgeIds) {
-            this.removed.addAll(edgeIds);
-        }
+		var wsData = new WsData(null, 10);
+		wsData.setToken(TOKEN);
+		wsData.setUser(DummyUser.DUMMY_GUEST);
 
-        @Override
-        public void addEdgeSubscriptions(WsData wsData, Set<String> edgeIds) {
-            this.added.addAll(edgeIds);
-        }
-    }
+		var websocket = mock(WebSocket.class);
+		when(websocket.getAttachment()).thenReturn(wsData);
 
-    @Test
-    public void updateEdgeSubscriptionsTest_Update() {
-        var parent = new DummyUiWebsocketImpl();
-        var sut = new OnRequest(parent);
-        var wsData = new WsData(null, 10);
-        wsData.addSubscribedEdges(Set.of("edge0", "edge1", "edge2"));
+		var request = new GenericJsonrpcRequest(GetEdgesRequest.METHOD, JsonUtils.buildJsonObject() //
+				.addProperty("page", 0) //
+				.addProperty("limit", 20) //
+				.build());
+		var response = new OnRequest(parent).apply(websocket, request).join();
 
-        sut.updateEdgeSubscriptions(wsData, Set.of("edge1", "edge3"));
+		assertTrue(response instanceof GetEdgesResponse);
+		assertEquals(List.of(), ((GetEdgesResponse) response).edgeMetadata);
+	}
 
-        assertEquals(Set.of("edge0", "edge2"), parent.removed);
-        assertEquals(Set.of("edge3"), parent.added);
+	@Test
+	public void logoutRevokesAuthenticatedSessionToken() throws Exception {
+		var authService = new RecordingAuthenticationService();
+		var parent = new UiWebsocketImpl();
+		parent.userAuthPasswordService = authService;
 
-        assertEquals(Set.of("edge1", "edge3"), wsData.getSubscribedEdges());
-    }
+		var wsData = new WsData(null, 10);
+		wsData.setToken(TOKEN);
+		wsData.setUser(DummyUser.DUMMY_GUEST);
 
-    @Test
-    public void updateEdgeSubscriptionsTest_Add() {
-        var parent = new DummyUiWebsocketImpl();
-        var sut = new OnRequest(parent);
-        var wsData = new WsData(null, 10);
+		var websocket = mock(WebSocket.class);
+		when(websocket.getAttachment()).thenReturn(wsData);
 
-        sut.updateEdgeSubscriptions(wsData, Set.of("edge1", "edge3"));
+		var response = new OnRequest(parent).apply(websocket, new LogoutRequest());
 
-        assertEquals(Set.of(), parent.removed);
-        assertEquals(Set.of("edge1", "edge3"), parent.added);
+		assertEquals(TOKEN, authService.logoutToken);
+		assertFalse(response.isDone());
+		assertEquals(Optional.empty(), wsData.getToken());
+		assertNull(wsData.getUser());
 
-        assertEquals(Set.of("edge1", "edge3"), wsData.getSubscribedEdges());
-    }
+		authService.logoutResult.complete(null);
+		response.join();
+	}
 
-    @Test
-    public void updateEdgeSubscriptionsTest_Clear() {
-        var parent = new DummyUiWebsocketImpl();
-        var sut = new OnRequest(parent);
-        var wsData = new WsData(null, 10);
-        wsData.addSubscribedEdges(Set.of("edge0", "edge1", "edge2"));
+	@Test
+	public void logoutFailsCleanlyWhenAuthenticationServiceIsUnavailable() throws Exception {
+		var parent = new UiWebsocketImpl();
+		var wsData = new WsData(null, 10);
+		wsData.setToken(TOKEN);
+		wsData.setUser(DummyUser.DUMMY_GUEST);
 
-        sut.updateEdgeSubscriptions(wsData, Set.of());
+		var websocket = mock(WebSocket.class);
+		when(websocket.getAttachment()).thenReturn(wsData);
 
-        assertEquals(Set.of("edge0", "edge1", "edge2"), parent.removed);
-        assertEquals(Set.of(), parent.added);
+		CompletableFuture<?> response;
+		try {
+			response = new OnRequest(parent).apply(websocket, new LogoutRequest());
+		} catch (RuntimeException e) {
+			throw new AssertionError("Logout must return a failed future when authentication is unavailable", e);
+		}
 
-        assertEquals(Set.of(), wsData.getSubscribedEdges());
-    }
+		var exception = assertThrows(CompletionException.class, response::join);
+		var cause = (OpenemsNamedException) exception.getCause();
+		assertEquals(OpenemsError.COMMON_SERVICE_NOT_AVAILABLE, cause.getError());
+		assertEquals(Optional.empty(), wsData.getToken());
+		assertNull(wsData.getUser());
+	}
+
+	@Test
+	public void logoutPropagatesAuthenticationServiceFailure() throws Exception {
+		var authService = new RecordingAuthenticationService();
+		var parent = new UiWebsocketImpl();
+		parent.userAuthPasswordService = authService;
+
+		var wsData = new WsData(null, 10);
+		wsData.setToken(TOKEN);
+		wsData.setUser(DummyUser.DUMMY_GUEST);
+
+		var websocket = mock(WebSocket.class);
+		when(websocket.getAttachment()).thenReturn(wsData);
+
+		var response = new OnRequest(parent).apply(websocket, new LogoutRequest());
+		var expected = OpenemsError.COMMON_AUTHENTICATION_FAILED.exception();
+		authService.logoutResult.completeExceptionally(expected);
+
+		var exception = assertThrows(CompletionException.class, response::join);
+		assertSame(expected, exception.getCause());
+		assertEquals(Optional.empty(), wsData.getToken());
+		assertNull(wsData.getUser());
+	}
+
+	@Test
+	public void logoutWithoutTokenIsIdempotentWithoutAuthenticationService() throws Exception {
+		var parent = new UiWebsocketImpl();
+		var wsData = new WsData(null, 10);
+		wsData.setUser(DummyUser.DUMMY_GUEST);
+
+		var websocket = mock(WebSocket.class);
+		when(websocket.getAttachment()).thenReturn(wsData);
+
+		new OnRequest(parent).apply(websocket, new LogoutRequest()).join();
+
+		assertEquals(Optional.empty(), wsData.getToken());
+		assertNull(wsData.getUser());
+	}
+
+	private static final class RecordingAuthenticationService implements AuthUserPasswordAuthenticationService {
+
+		private final CompletableFuture<Void> logoutResult = new CompletableFuture<>();
+		private String logoutToken;
+
+		@Override
+		public CompletableFuture<PasswordAuthenticationResult> authenticateWithPassword(String username,
+				String password) {
+			throw new AssertionError("Unexpected password authentication");
+		}
+
+		@Override
+		public CompletableFuture<PasswordAuthenticationResult> authenticateWithToken(String token) {
+			throw new AssertionError("Unexpected token authentication");
+		}
+
+		@Override
+		public CompletableFuture<Void> logout(String token) {
+			this.logoutToken = token;
+			return this.logoutResult;
+		}
+	}
+
+	private static class DummyUiWebsocketImpl extends UiWebsocketImpl {
+		private final Set<String> removed = new HashSet<>();
+		private final Set<String> added = new HashSet<>();
+
+		@Override
+		public void removeEdgeSubscriptions(WsData wsData) {
+			this.removed.addAll(wsData.getSubscribedEdges());
+		}
+
+		@Override
+		public void removeEdgeSubscriptions(WsData wsData, Set<String> edgeIds) {
+			this.removed.addAll(edgeIds);
+		}
+
+		@Override
+		public void addEdgeSubscriptions(WsData wsData, Set<String> edgeIds) {
+			this.added.addAll(edgeIds);
+		}
+	}
+
+	@Test
+	public void updateEdgeSubscriptionsTest_Update() {
+		var parent = new DummyUiWebsocketImpl();
+		var sut = new OnRequest(parent);
+		var wsData = new WsData(null, 10);
+		wsData.addSubscribedEdges(Set.of("edge0", "edge1", "edge2"));
+
+		sut.updateEdgeSubscriptions(wsData, Set.of("edge1", "edge3"));
+
+		assertEquals(Set.of("edge0", "edge2"), parent.removed);
+		assertEquals(Set.of("edge3"), parent.added);
+
+		assertEquals(Set.of("edge1", "edge3"), wsData.getSubscribedEdges());
+	}
+
+	@Test
+	public void updateEdgeSubscriptionsTest_Add() {
+		var parent = new DummyUiWebsocketImpl();
+		var sut = new OnRequest(parent);
+		var wsData = new WsData(null, 10);
+
+		sut.updateEdgeSubscriptions(wsData, Set.of("edge1", "edge3"));
+
+		assertEquals(Set.of(), parent.removed);
+		assertEquals(Set.of("edge1", "edge3"), parent.added);
+
+		assertEquals(Set.of("edge1", "edge3"), wsData.getSubscribedEdges());
+	}
+
+	@Test
+	public void updateEdgeSubscriptionsTest_Clear() {
+		var parent = new DummyUiWebsocketImpl();
+		var sut = new OnRequest(parent);
+		var wsData = new WsData(null, 10);
+		wsData.addSubscribedEdges(Set.of("edge0", "edge1", "edge2"));
+
+		sut.updateEdgeSubscriptions(wsData, Set.of());
+
+		assertEquals(Set.of("edge0", "edge1", "edge2"), parent.removed);
+		assertEquals(Set.of(), parent.added);
+
+		assertEquals(Set.of(), wsData.getSubscribedEdges());
+	}
 }
