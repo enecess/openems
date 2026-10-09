@@ -70,6 +70,9 @@ export class OverViewComponent implements ViewWillEnter, OnDestroy {
                         ? [environment.PRODUCT_TYPES(this.translate), SUM_STATES(this.translate)]
                         : []),
                 ]);
+                if (environment.backend === "OpenEMS Backend" && this.isAtLeastOwner) {
+                    return;
+                }
                 untracked(() => {
                     this.loadNextPage().then((edges) => {
                         this.filteredEdges.set(edges);

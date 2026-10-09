@@ -1103,11 +1103,22 @@ public class AppManagerImpl extends AbstractOpenemsComponent implements AppManag
 			final var oldApp = this.findInstanceByIdOrError(request.instanceId());
 			final var app = this.findAppByIdOrError(oldApp.appId);
 
-			final var props = request.properties();
+			final var props = request.properties().deepCopy();
 			final JsonObject restOfProps;
 
 			if (app instanceof AbstractOpenemsAppWithProps) {
 				restOfProps = AbstractOpenemsApp.fillUpProperties(app, oldApp.properties);
+				// UI update requests only contain form fields. Preserve omitted immutable
+				// properties so application-level validation can identify the instance.
+				for (var property : app.getProperties()) {
+					if (props.has(property.name) || app.assertCanEdit(property.name, user)) {
+						continue;
+					}
+					final var oldValue = restOfProps.get(property.name);
+					if (oldValue != null) {
+						props.add(property.name, oldValue.deepCopy());
+					}
+				}
 			} else {
 				restOfProps = oldApp.properties;
 			}

@@ -1,0 +1,4 @@
+docker/*.part-* binary
+SHA256SUMS text eol=lf
+docker/*.sha256 text eol=lf
+build/Dockerfile.* text eol=lf

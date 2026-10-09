@@ -175,13 +175,10 @@ export class Websocket implements WebsocketInterface {
     /** Logs out by sending a logout JSON-RPC Request. */
     public logout() {
         this.sendRequest(new LogoutRequest())
-            .then((response) => {
-                this.onLoggedOut();
-            })
             .catch((reason) => {
                 console.error(reason);
-                this.router.navigate(["/login"]);
-            });
+            })
+            .finally(() => this.onLoggedOut());
     }
 
     /**

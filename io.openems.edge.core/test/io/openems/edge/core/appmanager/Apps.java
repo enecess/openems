@@ -92,6 +92,7 @@ import io.openems.edge.app.integratedsystem.fenecon.commercial.FeneconCommercial
 import io.openems.edge.app.integratedsystem.fenecon.commercial.FeneconCommercial92ClusterSlave;
 import io.openems.edge.app.loadcontrol.ManualRelayControl;
 import io.openems.edge.app.loadcontrol.ThresholdControl;
+import io.openems.edge.app.meter.enecess.AppEcoMain;
 import io.openems.edge.app.meter.CarloGavazziMeter;
 import io.openems.edge.app.meter.DiscovergyMeter;
 import io.openems.edge.app.meter.EastronMeter;
@@ -1074,6 +1075,16 @@ public final class Apps {
 	}
 
 	// Meter
+
+	/**
+	 * Test method for creating an {@link AppEcoMain}.
+	 *
+	 * @param t the {@link AppManagerTestBundle}
+	 * @return the {@link OpenemsApp} instance
+	 */
+	public static AppEcoMain ecoMain(AppManagerTestBundle t) {
+		return app(t, AppEcoMain::new, AppEcoMain.APP_ID);
+	}
 
 	/**
 	 * Test method for creating a {@link AppShellyMeterDiy}.

@@ -1,0 +1,25 @@
+### Build ui base
+FROM ghcr.io/linuxserver/baseimage-alpine:edge@sha256:9ea28effffa229a2834ecc1f3228ae040ef3b98ba1080e6974b89f8a0febcbb7 AS ui_base
+
+RUN apk add --update --no-cache \
+    nginx openssl bash dos2unix rsync gettext
+
+### Build ui container
+FROM ui_base
+
+COPY --chown=abc:abc ui-backend/root/ /
+COPY --chown=abc:abc ui-backend/html/ /var/www/html/openems/
+
+RUN find /etc/s6-overlay/ -type f -name 'run' -exec chmod +x {} \;
+
+VOLUME /etc/nginx
+VOLUME /var/log/nginx
+
+ENV WEBSOCKET_HOST="<hostname>"
+ENV WEBSOCKET_PORT="8082"
+ENV REST_PORT="8084"
+ENV ENABLE_HTTPS=false
+
+EXPOSE 80 443
+
+LABEL org.opencontainers.image.source="https://github.com/enecess/openems" org.opencontainers.image.revision="47c8149331db74f05184a00faa2c1e97043a8b9d" org.opencontainers.image.version="dev-ecomain-20261009-47c814933"
