@@ -1,0 +1,5 @@
+da8631da71e0cf8278ebc2c86acc4e88272630f9d324747bb2589700abc2d2f7  jar/openems-edge.jar
+50e6c9cd8e70f5c6205de9d79aaffd1ad53047393e7b3d8765dfcc769a533d4f  jar/openems-backend.jar
+5444f54b3f35bd372e618cf6dc05afc9a3ac55c70edf055e3c013cc0d0f1641a  jar/openems-backend-edge.jar
+cc3d56b4bf3277f48b54e4f93e1d2838d8c8a32a93f5ac1575eafbbc73cf58f0  docker/openems-images-linux-amd64.tar.gz.part-000
+daa5213618bf68ab897b15e295ede4117835c9e437edecf1c5c80f4456eeefdd  docker/openems-images-linux-amd64.tar.gz.part-001

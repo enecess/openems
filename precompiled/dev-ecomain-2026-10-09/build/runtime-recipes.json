@@ -1,0 +1,31 @@
+{
+  "baseImage": "ghcr.io/linuxserver/baseimage-alpine:edge@sha256:9ea28effffa229a2834ecc1f3228ae040ef3b98ba1080e6974b89f8a0febcbb7",
+  "sourceRevision": "47c8149331db74f05184a00faa2c1e97043a8b9d",
+  "recipes": {
+    "edge": {
+      "officialDockerfile": "tools/docker/edge/Dockerfile",
+      "officialDockerfileSha256": "99901fcc7e047a2fd09817752e96a3ee78fd9896649077ab61027ccb8425572a",
+      "runtimeDockerfileSha256": "6719d9cb56dfbb0fbaee88a11da124fa5eb9aeb4305a08ac4ca1f02e2921b5ef"
+    },
+    "backend": {
+      "officialDockerfile": "tools/docker/backend/Dockerfile",
+      "officialDockerfileSha256": "e919fe3c5a2c64f6b3954d1a3b6a401d9721e9bd3b433c920438cae49bc092c5",
+      "runtimeDockerfileSha256": "1b32db73ded74e0ec60bd7269c71eb657136adf45f0a1841d27b5e55d712a398"
+    },
+    "backend-edge": {
+      "officialDockerfile": "tools/docker/backend-edge/Dockerfile",
+      "officialDockerfileSha256": "6cbccd9b5db909d6cecc66d35eb92de583fbd1c9f4c6b623d27e8019326db2b4",
+      "runtimeDockerfileSha256": "71d181ef4e275d5c8aa2541084b1d304ba65933cbecb119d4c2f9430e66841c0"
+    },
+    "ui-edge": {
+      "officialDockerfile": "tools/docker/ui/Dockerfile.edge",
+      "officialDockerfileSha256": "94c01efb50bc2b75340e220b210586799042cffb6def36eb7b107811bf0766c7",
+      "runtimeDockerfileSha256": "71cd0ce514d77f0025fe3a3cf73a4618de039a6619336808a6756a3f9af18fa5"
+    },
+    "ui-backend": {
+      "officialDockerfile": "tools/docker/ui/Dockerfile.backend",
+      "officialDockerfileSha256": "26ce9bb483c68ff7e0aeb1e160093a6a01a7e4e86164a3a5d75d6a8b472785c3",
+      "runtimeDockerfileSha256": "24d61f621c069bc7b2dc5a0f5e18e9910220de12036aac036f42a5e50bbf8816"
+    }
+  }
+}

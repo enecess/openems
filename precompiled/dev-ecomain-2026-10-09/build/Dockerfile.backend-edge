@@ -1,0 +1,34 @@
+ARG JAVA_VERSION=21
+ARG JAVA_PACKAGE=jre
+
+### Build jar container base
+FROM ghcr.io/linuxserver/baseimage-alpine:edge@sha256:9ea28effffa229a2834ecc1f3228ae040ef3b98ba1080e6974b89f8a0febcbb7 AS base_container
+
+ARG JAVA_VERSION
+ARG JAVA_PACKAGE
+
+RUN mkdir -p /etc/apk/keys && \
+    wget -O /etc/apk/keys/adoptium.rsa.pub https://packages.adoptium.net/artifactory/api/security/keypair/public/repositories/apk && \
+    touch /etc/apk/repositories && \
+    printf '%s\n' 'https://packages.adoptium.net/artifactory/apk/alpine/main' >> /etc/apk/repositories
+
+RUN apk add --update --no-cache \
+    rsync dos2unix \
+    temurin-${JAVA_VERSION}-${JAVA_PACKAGE}
+
+### Build backend container
+FROM base_container
+
+COPY --chown=abc:abc backend-edge/root/ /
+COPY --chown=abc:abc backend-edge/openems-backend-edge.jar /opt/openems/openems-backend-edge.jar
+
+RUN find /etc/s6-overlay/ -type f -name 'run' -exec chmod +x {} \;
+
+ENV EXTRA_JVM_OPTS=""
+
+VOLUME /var/opt/openems/config
+VOLUME /var/opt/openems/data
+
+EXPOSE 8078 8081
+
+LABEL org.opencontainers.image.source="https://github.com/enecess/openems" org.opencontainers.image.revision="47c8149331db74f05184a00faa2c1e97043a8b9d" org.opencontainers.image.version="dev-ecomain-20261009-47c814933"

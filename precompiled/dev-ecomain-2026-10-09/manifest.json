@@ -1,0 +1,95 @@
+{
+  "builtAtUtc": "2026-10-09T08:41:11.002743+00:00",
+  "sourceRepository": "https://github.com/enecess/openems",
+  "sourceBranch": "dev/ecomain",
+  "sourceRevision": "47c8149331db74f05184a00faa2c1e97043a8b9d",
+  "upstreamRevision": "3240f7bce797ee3acebf2c976585571164173bf9",
+  "javaVersion": 21,
+  "platforms": [
+    "linux/amd64"
+  ],
+  "buildCommands": [
+    "gradlew buildEdge buildBackend buildBackendEdge",
+    "ng build -c openems,openems-edge-docker,prod",
+    "ng build -c openems,openems-backend-docker,prod"
+  ],
+  "jars": [
+    {
+      "file": "jar/openems-edge.jar",
+      "sizeBytes": 66647670,
+      "sha256": "da8631da71e0cf8278ebc2c86acc4e88272630f9d324747bb2589700abc2d2f7"
+    },
+    {
+      "file": "jar/openems-backend.jar",
+      "sizeBytes": 33961632,
+      "sha256": "50e6c9cd8e70f5c6205de9d79aaffd1ad53047393e7b3d8765dfcc769a533d4f"
+    },
+    {
+      "file": "jar/openems-backend-edge.jar",
+      "sizeBytes": 16498543,
+      "sha256": "5444f54b3f35bd372e618cf6dc05afc9a3ac55c70edf055e3c013cc0d0f1641a"
+    }
+  ],
+  "dockerArchive": {
+    "file": "docker/openems-images-linux-amd64.tar.gz",
+    "format": "docker save, gzip",
+    "sizeBytes": 198142242,
+    "sha256": "87a35fcd2e5822caea0b604831e79755934611ee19edcd9f4916f4e16b7bd0b5",
+    "parts": [
+      {
+        "file": "docker/openems-images-linux-amd64.tar.gz.part-000",
+        "sizeBytes": 99614720,
+        "sha256": "cc3d56b4bf3277f48b54e4f93e1d2838d8c8a32a93f5ac1575eafbbc73cf58f0"
+      },
+      {
+        "file": "docker/openems-images-linux-amd64.tar.gz.part-001",
+        "sizeBytes": 98527522,
+        "sha256": "daa5213618bf68ab897b15e295ede4117835c9e437edecf1c5c80f4456eeefdd"
+      }
+    ]
+  },
+  "images": [
+    {
+      "name": "edge",
+      "tag": "enecess/openems-edge:dev-ecomain-20261009-47c814933",
+      "imageId": "sha256:3f6df3f95a6936d23a674d759de072bd8200430a8c0fb3e753d59667205757a2",
+      "platform": "linux/amd64",
+      "sizeBytes": 136482365
+    },
+    {
+      "name": "backend",
+      "tag": "enecess/openems-backend:dev-ecomain-20261009-47c814933",
+      "imageId": "sha256:eac91987f18e5edb9ebb6e92273cb724d6e5a001d4501373873607f48467bcb4",
+      "platform": "linux/amd64",
+      "sizeBytes": 100693738
+    },
+    {
+      "name": "backend-edge",
+      "tag": "enecess/openems-backend-edge:dev-ecomain-20261009-47c814933",
+      "imageId": "sha256:3da7f9edd000549e68d2a8b488c5c59bd7809bdb10825e9de0535fbb3b12fc76",
+      "platform": "linux/amd64",
+      "sizeBytes": 83228038
+    },
+    {
+      "name": "ui-edge",
+      "tag": "enecess/openems-ui-edge:dev-ecomain-20261009-47c814933",
+      "imageId": "sha256:09eb180cff63f1050470996fc4e3a37cf0a4a17db1b7d5252f91328f16016ae4",
+      "platform": "linux/amd64",
+      "sizeBytes": 21972887
+    },
+    {
+      "name": "ui-backend",
+      "tag": "enecess/openems-ui-backend:dev-ecomain-20261009-47c814933",
+      "imageId": "sha256:97905039b1a69b0c6fc7961e7543a4686154ea9429adb50108e139bcbd9848f0",
+      "platform": "linux/amd64",
+      "sizeBytes": 21976801
+    }
+  ],
+  "validation": [
+    "JAR ZIP CRC and manifest validation; ecoMain bundle present",
+    "Image JAR bytes match standalone JARs",
+    "Five images start on isolated network; Felix and UI HTTP respond",
+    "Both UI Nginx configurations and proxy routes validated",
+    "Docker archive imported with docker load"
+  ]
+}

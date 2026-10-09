@@ -1,3 +1,13 @@
+## Precompiled deployment files (dev/ecomain, 2026-10-09)
+
+To support deployment while upstream integration is pending, this repository provides precompiled files from `dev/ecomain` source commit `47c814933`, including ecoMain support and authentication, UI, and WebSocket fixes. These are enecess branch builds.
+
+- JARs: [Edge](precompiled/dev-ecomain-2026-10-09/jar/openems-edge.jar), [Backend](precompiled/dev-ecomain-2026-10-09/jar/openems-backend.jar), and [Backend Edge](precompiled/dev-ecomain-2026-10-09/jar/openems-backend-edge.jar). Java 21 is required.
+- Docker: [linux/amd64 offline image bundle](precompiled/dev-ecomain-2026-10-09/README.md#offline-docker-deployment), containing five component images. The bundle is split into two files to meet GitHub's file size limit; reassemble it and import it with `docker load`.
+- [Downloads, SHA256 checksums, and usage instructions](precompiled/dev-ecomain-2026-10-09/README.md): JAR startup, Docker ports, volumes, environment variables, and subsequent configuration follow the [official OpenEMS installation documentation](https://openems.github.io/openems.io/openems/latest/gettingstarted.html).
+
+---
+
 [![Build Status](https://github.com/OpenEMS/openems/actions/workflows/build.yml/badge.svg)](https://github.com/OpenEMS/openems/actions/workflows/build.yml)
 [![Gitpod live-demo](https://img.shields.io/badge/Gitpod-live--demo-blue?logo=gitpod)](https://gitpod.io/#https://github.com/OpenEMS/openems/tree/main)
 [![Cite via Zenodo](https://zenodo.org/badge/DOI/10.5281/zenodo.4440884.svg)](https://doi.org/10.5281/zenodo.4440883)
